@@ -8,6 +8,7 @@ import static io.mosip.registration.constants.RegistrationConstants.APPLICATION_
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.context.ApplicationContext;
 
@@ -85,7 +86,13 @@ public class TextFieldFxControl extends FxControl {
 		validation = applicationContext.getBean(Validations.class);
 		fxComponents = applicationContext.getBean(FXComponents.class);
 		demographicChangeActionHandler = applicationContext.getBean(DemographicChangeActionHandler.class);
-		transliteration = (Transliteration<String>) applicationContext.getBean(Transliteration.class);
+		Map<String, Transliteration> beans = applicationContext.getBeansOfType(Transliteration.class);
+		LOGGER.debug("Transliterations implementations found : {}", beans);
+		for(String name : beans.keySet()) {
+			LOGGER.info("Choosing transliteration implementations --> {}", name);
+			this.transliteration = beans.get(name);
+			break;
+		}
 		genericController = applicationContext.getBean(GenericController.class);
 	}
 
@@ -439,7 +446,7 @@ public class TextFieldFxControl extends FxControl {
 					RegistrationConstants.APPLICATION_ID,
 					exception.getMessage() + ExceptionUtils.getStackTrace(exception));
 
-			validation.generateAlert(RegistrationConstants.ERROR, RegistrationUIConstants.UNABLE_LOAD_SCAN_POPUP);
+			validation.generateAlert(RegistrationConstants.ERROR, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.UNABLE_LOAD_SCAN_POPUP));
 		}
 	}
 	

@@ -11,20 +11,26 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
 import java.util.AbstractMap.SimpleEntry;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.ResourceBundle;
+import java.util.Timer;
+import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-import io.mosip.registration.dto.mastersync.GenericDto;
-import io.mosip.registration.exception.RemapException;
 import org.apache.commons.collections4.ListUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-
-import com.itextpdf.text.pdf.PdfStructTreeController.returnType;
 
 import io.mosip.commons.packet.constants.PacketManagerConstants;
 import io.mosip.kernel.core.exception.ExceptionUtils;
@@ -55,14 +61,17 @@ import io.mosip.registration.dto.UiSchemaDTO;
 import io.mosip.registration.dto.biometric.BiometricExceptionDTO;
 import io.mosip.registration.dto.biometric.BiometricInfoDTO;
 import io.mosip.registration.dto.biometric.FaceDetailsDTO;
+import io.mosip.registration.dto.mastersync.GenericDto;
 import io.mosip.registration.dto.packetmanager.BiometricsDto;
 import io.mosip.registration.dto.response.SchemaDto;
 import io.mosip.registration.exception.PreConditionCheckException;
 import io.mosip.registration.exception.RegBaseCheckedException;
+import io.mosip.registration.exception.RemapException;
 import io.mosip.registration.scheduler.SchedulerUtil;
 import io.mosip.registration.service.BaseService;
 import io.mosip.registration.service.IdentitySchemaService;
 import io.mosip.registration.service.config.GlobalParamService;
+import io.mosip.registration.service.config.LocalConfigService;
 import io.mosip.registration.service.operator.UserOnboardService;
 import io.mosip.registration.service.remap.CenterMachineReMapService;
 import io.mosip.registration.service.security.AuthenticationService;
@@ -98,6 +107,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 import javafx.scene.text.Text;
@@ -195,6 +205,9 @@ public class BaseController {
 
 	@Autowired
 	private AuthTokenUtilService authTokenUtilService;
+	
+	@Autowired
+	private LocalConfigService localConfigService;
 
 	protected ApplicationContext applicationContext = ApplicationContext.getInstance();
 
@@ -223,6 +236,8 @@ public class BaseController {
 	}
 
 	private static HashMap<String, String> labelMap = new HashMap<>();
+	
+	public List<HBox> shortCuts = new ArrayList<>();
 
 	public static String getFromLabelMap(String key) {
 		return labelMap.get(key);
@@ -254,13 +269,13 @@ public class BaseController {
 	 *
 	 * @param validations is a map id's and regex validations
 	 */
-	public void setValidations(Map<String, UiSchemaDTO> validations) {
+	/*public void setValidations(Map<String, UiSchemaDTO> validations) {
 		validationMap = validations;
 	}
 
 	public Map<String, UiSchemaDTO> getValidationMap() {
 		return validationMap;
-	}
+	}*/
 
 	/**
 	 * @return the alertStage
@@ -412,7 +427,7 @@ public class BaseController {
 			alertStage.initModality(Modality.WINDOW_MODAL);
 
 			alertController.getAlertGridPane().setPrefHeight(context.length() / 2 + 110);
-			controller.setScanningMsg(RegistrationUIConstants.VALIDATION_MESSAGE);
+			controller.setScanningMsg(RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.VALIDATION_MESSAGE));
 			alertTypeCheck(title, context, alertStage);
 			isValid = run.toRun();
 		} catch (IOException ioException) {
@@ -463,8 +478,8 @@ public class BaseController {
 		if (!fXComponents.getScene().getRoot().getId().equals("mainBox") && !SessionContext.map()
 				.get(RegistrationConstants.ISPAGE_NAVIGATION_ALERT_REQ).equals(RegistrationConstants.ENABLE)) {
 
-			Alert alert = createAlert(AlertType.CONFIRMATION, RegistrationUIConstants.INFORMATION,
-					RegistrationUIConstants.ALERT_NOTE_LABEL, RegistrationUIConstants.PAGE_NAVIGATION_MESSAGE,
+			Alert alert = createAlert(AlertType.CONFIRMATION, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.INFORMATION),
+					RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.ALERT_NOTE_LABEL), RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.PAGE_NAVIGATION_MESSAGE),
 					RegistrationConstants.PAGE_NAVIGATION_CONFIRM, RegistrationConstants.PAGE_NAVIGATION_CANCEL);
 
 			alert.show();
@@ -579,7 +594,9 @@ public class BaseController {
 	 *
 	 */
 	protected void getGlobalParams() {
-		ApplicationContext.setApplicationMap(globalParamService.getGlobalParams());
+		Map<String, Object> globalProps = globalParamService.getGlobalParams();
+		globalProps.putAll(localConfigService.getLocalConfigurations());
+		ApplicationContext.setApplicationMap(globalProps);
 	}
 
 	/**
@@ -612,11 +629,11 @@ public class BaseController {
 		} catch (IOException ioException) {
 			LOGGER.error("REGISTRATION - REDIRECTHOME - BASE_CONTROLLER", APPLICATION_NAME, APPLICATION_ID,
 					ioException.getMessage() + ExceptionUtils.getStackTrace(ioException));
-			generateAlert(RegistrationConstants.ERROR, RegistrationUIConstants.UNABLE_LOAD_HOME_PAGE);
+			generateAlert(RegistrationConstants.ERROR, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.UNABLE_LOAD_HOME_PAGE));
 		} catch (RuntimeException runtimException) {
 			LOGGER.error("REGISTRATION - REDIRECTHOME - BASE_CONTROLLER", APPLICATION_NAME, APPLICATION_ID,
 					runtimException.getMessage() + ExceptionUtils.getStackTrace(runtimException));
-			generateAlert(RegistrationConstants.ERROR, RegistrationUIConstants.UNABLE_LOAD_HOME_PAGE);
+			generateAlert(RegistrationConstants.ERROR, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.UNABLE_LOAD_HOME_PAGE));
 		}
 	}
 
@@ -1138,12 +1155,12 @@ public class BaseController {
 
 	public void remapMachine() {
 
-		String message = RegistrationUIConstants.REMAP_NO_ACCESS_MESSAGE;
+		String message = RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.REMAP_NO_ACCESS_MESSAGE);
 
 		if (isPacketsPendingForEODOrReRegister()) {
-			message += RegistrationConstants.NEW_LINE + RegistrationUIConstants.REMAP_EOD_PROCESS_MESSAGE;
+			message += RegistrationConstants.NEW_LINE + RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.REMAP_EOD_PROCESS_MESSAGE);
 		}
-		message += RegistrationConstants.NEW_LINE + RegistrationUIConstants.REMAP_CLICK_OK;
+		message += RegistrationConstants.NEW_LINE + RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.REMAP_CLICK_OK);
 		generateAlert(RegistrationConstants.ALERT_INFORMATION, message);
 
 		disableHomePage(true);
@@ -1195,10 +1212,10 @@ public class BaseController {
 		packetHandlerController.getProgressIndicator().setVisible(false);
 
 		if (isSuccess) {
-			generateAlert(RegistrationConstants.ALERT_INFORMATION, RegistrationUIConstants.REMAP_PROCESS_SUCCESS);
+			generateAlert(RegistrationConstants.ALERT_INFORMATION, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.REMAP_PROCESS_SUCCESS));
 			headerController.logoutCleanUp();
 		} else {
-			generateAlert(RegistrationConstants.ALERT_INFORMATION, RegistrationUIConstants.REMAP_PROCESS_STILL_PENDING);
+			generateAlert(RegistrationConstants.ALERT_INFORMATION, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.REMAP_PROCESS_STILL_PENDING));
 		}
 	}
 
@@ -1406,7 +1423,7 @@ public class BaseController {
 
 	protected void restartApplication() {
 
-		generateAlert(RegistrationConstants.SUCCESS.toUpperCase(), RegistrationUIConstants.RESTART_APPLICATION);
+		generateAlert(RegistrationConstants.SUCCESS.toUpperCase(), RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.RESTART_APPLICATION));
 		restartController.restart();
 
 	}
@@ -1642,7 +1659,7 @@ public class BaseController {
 	//
 	// }
 
-	public List<String> getBioAttributesBySubType(String subType) {
+	/*public List<String> getBioAttributesBySubType(String subType) {
 		List<String> bioAttributes = new ArrayList<String>();
 		if (subType != null) {
 			bioAttributes = getAttributesByTypeAndSubType(RegistrationConstants.BIOMETRICS_TYPE, subType);
@@ -1662,7 +1679,7 @@ public class BaseController {
 			}
 		}
 		return bioAttributes;
-	}
+	}*/
 
 	/*
 	 * protected boolean isAvailableInBioAttributes(List<String> constantAttributes)
@@ -1684,7 +1701,7 @@ public class BaseController {
 	 * return isAvailable; }
 	 */
 
-	protected List<String> getNonConfigBioAttributes(String uiSchemaSubType, List<String> constantAttributes) {
+	/*protected List<String> getNonConfigBioAttributes(String uiSchemaSubType, List<String> constantAttributes) {
 
 		if ((boolean) SessionContext.map().get(RegistrationConstants.ONBOARD_USER))
 			return constantAttributes;
@@ -1700,7 +1717,7 @@ public class BaseController {
 			}
 		}
 		return nonConfigBiometrics;
-	}
+	}*/
 
 	protected boolean isDemographicField(UiSchemaDTO schemaField) {
 		return (schemaField.isInputRequired()
@@ -1710,12 +1727,17 @@ public class BaseController {
 
 	/*
 	 * protected List<String> getConstantConfigBioAttributes(String bioType) {
+<<<<<<< HEAD
 	 *
 	 * return bioType.equalsIgnoreCase(RegistrationUIConstants.RIGHT_SLAP) ?
+=======
+	 * 
+	 * return bioType.equalsIgnoreCase(RegistrationUIConstants.getMessageLanguageSpecific("RIGHT_SLAP) ?
+>>>>>>> f605a2ee04... Worked on alert screens which displays primary language for the alert screen messages and after modification in above files able to see language specific messages getting deisplayed
 	 * RegistrationConstants.rightHandUiAttributes :
-	 * bioType.equalsIgnoreCase(RegistrationUIConstants.LEFT_SLAP) ?
+	 * bioType.equalsIgnoreCase(RegistrationUIConstants.getMessageLanguageSpecific("LEFT_SLAP) ?
 	 * RegistrationConstants.leftHandUiAttributes :
-	 * bioType.equalsIgnoreCase(RegistrationUIConstants.THUMBS) ?
+	 * bioType.equalsIgnoreCase(RegistrationUIConstants.getMessageLanguageSpecific("THUMBS) ?
 	 * RegistrationConstants.twoThumbsUiAttributes :
 	 * bioType.equalsIgnoreCase(RegistrationConstants.IRIS) ?
 	 * RegistrationConstants.eyesUiAttributes :
@@ -1813,7 +1835,7 @@ public class BaseController {
 		Map<Entry<String, String>, Map<String, List<List<String>>>> mapToProcess = new HashMap<>();
 
 		Map<String, String> labels = new HashMap<>();
-		labels.put("OPERATOR", RegistrationUIConstants.ONBOARD_USER_TITLE);
+		labels.put("OPERATOR", RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.ONBOARD_USER_TITLE));
 
 		Object value = ApplicationContext.map().get(RegistrationConstants.OPERATOR_ONBOARDING_BIO_ATTRIBUTES);
 		List<String> attributes = (value != null) ? Arrays.asList(((String) value).split(","))
@@ -1842,11 +1864,11 @@ public class BaseController {
 		return mapToProcess;
 	}
 
-	protected List<UiSchemaDTO> fetchByGroup(String group) {
+	/*protected List<UiSchemaDTO> fetchByGroup(String group) {
 		return validation.getValidationMap().values().stream()
 				.filter(schemaDto -> schemaDto.getGroup() != null && schemaDto.getGroup().equalsIgnoreCase(group))
 				.collect(Collectors.toList());
-	}
+	}*/
 
 	public String getCssName() {
 		return cssTheme == null || cssTheme.isBlank() ? "application.css" : String.format("application-%s.css", cssTheme);
@@ -1870,12 +1892,12 @@ public class BaseController {
 	public boolean proceedOnAction(String job) {
 
 		if (!RegistrationAppHealthCheckUtil.isNetworkAvailable()) {
-			generateAlert(RegistrationConstants.ERROR, RegistrationUIConstants.NO_INTERNET_CONNECTION);
+			generateAlert(RegistrationConstants.ERROR, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.NO_INTERNET_CONNECTION));
 			return false;
 		}
 
 		if (!authTokenUtilService.hasAnyValidToken()) {
-			generateAlert(RegistrationConstants.ALERT_INFORMATION, RegistrationUIConstants.USER_RELOGIN_REQUIRED);
+			generateAlert(RegistrationConstants.ALERT_INFORMATION, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.USER_RELOGIN_REQUIRED));
 			return false;
 		}
 
@@ -2015,8 +2037,7 @@ public class BaseController {
         try {
 			return  new Image(uri);
 		} catch (Exception exception) {
-
-			LOGGER.error("Exception while Getting Image", exception);
+			LOGGER.error("Exception while Getting Image "+ uri, exception);
 			throw new RegBaseCheckedException();
 		}
 	}
@@ -2028,4 +2049,17 @@ public class BaseController {
 	public String getImageFilePath(String configFolder,String imageName) {
 		return configFolder.concat(File.separator).concat(imageName);
 	}
+	
+	public List<HBox> getShortCuts() {
+		return shortCuts;
+	}
+	
+	public void addShortCutToList(HBox shortCut) {
+		shortCuts.add(shortCut);
+	}
+	
+	public void removeShortCutFromList(HBox shortCut) {
+		shortCuts.remove(shortCut);
+	}
+	
 }

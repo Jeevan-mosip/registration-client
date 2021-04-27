@@ -8,7 +8,15 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.sql.Timestamp;
+
+	
+import java.util.ArrayList;	
+import java.util.List;
 import java.util.TimerTask;
+import java.util.TimerTask;
+import java.util.stream.Collectors;
+
+import org.apache.commons.collections.CollectionUtils;
 
 import io.mosip.registration.exception.PreConditionCheckException;
 import io.mosip.registration.service.BaseService;
@@ -47,6 +55,11 @@ import io.mosip.registration.service.sync.SyncStatusValidatorService;
 import io.mosip.registration.update.SoftwareUpdateHandler;
 import io.mosip.registration.util.healthcheck.RegistrationAppHealthCheckUtil;
 import io.mosip.registration.util.restclient.AuthTokenUtilService;
+import io.mosip.registration.controller.SettingsController;
+import io.mosip.registration.dto.SettingsSchema;	
+import io.mosip.registration.service.IdentitySchemaService;
+
+
 import javafx.concurrent.Service;
 import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
@@ -72,6 +85,9 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Screen;
+import javafx.scene.Node;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.layout.HBox;
 
 /**
  * Class for Registration Officer details
@@ -120,10 +136,13 @@ public class HeaderController extends BaseController {
 	
 
 	@FXML
-	private GridPane online;
+	private HBox online;
 
 	@FXML
-	private GridPane offline;
+	private HBox offline;
+
+	@FXML
+    private HBox settingsHBox;
 
 	@FXML
 	private Menu homeSelectionMenu;
@@ -133,6 +152,9 @@ public class HeaderController extends BaseController {
 
 	@FXML
 	private MenuItem resetPword;
+
+	@FXML
+	private HBox settingsIconHBox;
 
 	@Autowired
 	private JobConfigurationService jobConfigurationService;
@@ -174,6 +196,14 @@ public class HeaderController extends BaseController {
 
 	@Autowired
 	private BaseService baseService;
+
+	@Autowired
+    private IdentitySchemaService identitySchemaService;
+
+    @Autowired
+	private SettingsController settingsController;
+
+    private List<SettingsSchema> settingsByRole = new ArrayList<>();
 	
 
 	/**
@@ -189,8 +219,8 @@ public class HeaderController extends BaseController {
 		setImage(userImageView	, RegistrationConstants.USER_IMG);
 		setImage(regCenterLocationImgView	, RegistrationConstants.REG_CENTER_LOCATION_IMG);
 		setImage(registrationOfficeIdImageView	, RegistrationConstants.SYSTEM_IMG);
-		setImage(availableIcon1	, RegistrationConstants.ONLINE_IMG);
-		setImage(availableIcon	, RegistrationConstants.ONLINE_IMG);
+		setImage(availableIcon1	, "Online.png");
+		setImage(availableIcon	, "Offline.png");
 		setImage(homeSelectionMenuImageView	, RegistrationConstants.HAMBURGER_IMG);
 		setImage(homeImgView	, RegistrationConstants.HOME_IMG);
 
@@ -209,6 +239,27 @@ public class HeaderController extends BaseController {
 			homeSelectionMenu.setDisable(false);
 		}
 		resetPword.setVisible(ApplicationContext.map().containsKey(RegistrationConstants.RESET_PWORD_URL));
+
+		try {
+			settingsByRole.clear();
+			List<SettingsSchema> settingsSchema = identitySchemaService
+					.getSettingsSchema(identitySchemaService.getLatestEffectiveSchemaVersion());
+			if (settingsSchema != null && !settingsSchema.isEmpty()) {
+				List<String> userRoles = userDetailService.getUserRoleByUserId(SessionContext.userId());
+				settingsByRole = settingsSchema.stream()
+						.filter(settings -> CollectionUtils.containsAny(settings.getAccessControl(), userRoles))
+						.collect(Collectors.toList());
+				if (settingsByRole != null && !settingsByRole.isEmpty()) {
+					settingsIconHBox.setVisible(true);
+				}
+			}
+		} catch (RuntimeException | RegBaseCheckedException exception) {
+			LOGGER.error("Exception while reading settings", exception);
+		}	
+		
+		if(!shortCuts.isEmpty()) {
+			shortCuts.forEach(shortCut -> settingsHBox.getChildren().add(shortCut));
+		}
 
 		getTimer().schedule(new TimerTask() {
 
@@ -262,7 +313,7 @@ public class HeaderController extends BaseController {
 			LOGGER.error(LoggerConstants.LOG_REG_HEADER, APPLICATION_NAME, APPLICATION_ID,
 					ioException.getMessage() + ExceptionUtils.getStackTrace(ioException));
 
-			generateAlert(RegistrationConstants.ERROR, RegistrationUIConstants.UNABLE_LOAD_LOGOUT_PAGE);
+			generateAlert(RegistrationConstants.ERROR, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.UNABLE_LOAD_LOGOUT_PAGE));
 		}
 	}
 
@@ -320,7 +371,7 @@ public class HeaderController extends BaseController {
 		} catch (RuntimeException exception) {
 			LOGGER.error("REGISTRATION - REDIRECTHOME - HEADER_CONTROLLER", APPLICATION_NAME, APPLICATION_ID,
 					exception.getMessage() + ExceptionUtils.getStackTrace(exception));
-			generateAlert(RegistrationConstants.ERROR, RegistrationUIConstants.UNABLE_LOAD_HOME_PAGE);
+			generateAlert(RegistrationConstants.ERROR, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.UNABLE_LOAD_HOME_PAGE));
 		}
 
 	}
@@ -342,7 +393,7 @@ public class HeaderController extends BaseController {
 					.load(getClass().getResource(RegistrationConstants.SYNC_STATUS));
 
 			if (!validateScreenAuthorization(syncServerClientRoot.getId())) {
-				generateAlert(RegistrationConstants.ERROR, RegistrationUIConstants.AUTHORIZATION_ERROR);
+				generateAlert(RegistrationConstants.ERROR, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.AUTHORIZATION_ERROR));
 			} else {
 				VBox pane = (VBox) (menu.getParent().getParent().getParent());
 				for (int index = pane.getChildren().size() - 1; index > 0; index--) {
@@ -388,7 +439,7 @@ public class HeaderController extends BaseController {
 		} catch (RuntimeException exception) {
 			LOGGER.error("REGISTRATION - REDIRECTHOME - HEADER_CONTROLLER", APPLICATION_NAME, APPLICATION_ID,
 					exception.getMessage() + ExceptionUtils.getStackTrace(exception));
-			generateAlert(RegistrationConstants.ERROR, RegistrationUIConstants.UNABLE_LOAD_HOME_PAGE);
+			generateAlert(RegistrationConstants.ERROR, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.UNABLE_LOAD_HOME_PAGE));
 		}
 
 	}
@@ -439,7 +490,7 @@ public class HeaderController extends BaseController {
 				public void handle(WorkerStateEvent t) {
 					LOGGER.debug("REGISTRATION - REDIRECTHOME - HEADER_CONTROLLER", APPLICATION_NAME, APPLICATION_ID,
 							"check for Center remap process failed");
-					generateAlert(RegistrationConstants.ALERT_INFORMATION, RegistrationUIConstants.SYNC_FAILURE);
+					generateAlert(RegistrationConstants.ALERT_INFORMATION, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.SYNC_FAILURE));
 					machineRemapCheck(true);
 					progressIndicator.setVisible(false);
 				}
@@ -482,9 +533,9 @@ public class HeaderController extends BaseController {
 			boolean hasUpdate = hasUpdate();
 			if (hasUpdate) {
 				softwareUpdate(homeController.getMainBox(), packetHandlerController.getProgressIndicator(),
-						RegistrationUIConstants.UPDATE_LATER, true);
+						RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.UPDATE_LATER), true);
 			} else {
-				generateAlert(RegistrationConstants.ALERT_INFORMATION, RegistrationUIConstants.NO_UPDATES_FOUND);
+				generateAlert(RegistrationConstants.ALERT_INFORMATION, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.NO_UPDATES_FOUND));
 			}
 		}
 	}
@@ -562,7 +613,7 @@ public class HeaderController extends BaseController {
 							responseDTO.getErrorResponseDTOs().get(0).getMessage());
 				} else {
 					gridPane.setDisable(false);
-					generateAlert(RegistrationConstants.ALERT_INFORMATION, RegistrationUIConstants.SYNC_SUCCESS);
+					generateAlert(RegistrationConstants.ALERT_INFORMATION, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.SYNC_SUCCESS));
 
 				}
 
@@ -650,11 +701,11 @@ public class HeaderController extends BaseController {
 
 				if (RegistrationConstants.ERROR.equalsIgnoreCase(taskService.getValue())) {
 					// generateAlert(RegistrationConstants.ERROR,
-					// RegistrationUIConstants.UNABLE_TO_UPDATE);
-					softwareUpdate(pane, progressIndicator, RegistrationUIConstants.UNABLE_TO_UPDATE, true);
+					// RegistrationUIConstants.getMessageLanguageSpecific("UNABLE_TO_UPDATE);
+					softwareUpdate(pane, progressIndicator, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.UNABLE_TO_UPDATE), true);
 				} else if (RegistrationConstants.ALERT_INFORMATION.equalsIgnoreCase(taskService.getValue())) {
 					// Update completed Re-Launch application
-					generateAlert(RegistrationConstants.ALERT_INFORMATION, RegistrationUIConstants.UPDATE_COMPLETED);
+					generateAlert(RegistrationConstants.ALERT_INFORMATION, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.UPDATE_COMPLETED));
 
 					restartApplication();
 				}
@@ -667,8 +718,8 @@ public class HeaderController extends BaseController {
 
 	public void softwareUpdate(Pane pane, ProgressIndicator progressIndicator, String context,
 			boolean isPreLaunchTaskToBeStopped) {
-		Alert updateAlert = createAlert(AlertType.CONFIRMATION, RegistrationUIConstants.UPDATE_AVAILABLE,
-				RegistrationUIConstants.ALERT_NOTE_LABEL, context, RegistrationConstants.UPDATE_NOW_LABEL,
+		Alert updateAlert = createAlert(AlertType.CONFIRMATION, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.UPDATE_AVAILABLE),
+				RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.ALERT_NOTE_LABEL), context, RegistrationConstants.UPDATE_NOW_LABEL,
 				RegistrationConstants.UPDATE_LATER_LABEL);
 
 		pane.setDisable(true);
@@ -689,8 +740,8 @@ public class HeaderController extends BaseController {
 			softwareUpdateInitiate(pane, progressIndicator, context, isPreLaunchTaskToBeStopped);
 
 		} else if (result == ButtonType.CANCEL && (statusValidatorService.isToBeForceUpdate())) {
-			Alert alert = createAlert(AlertType.INFORMATION, RegistrationUIConstants.UPDATE_AVAILABLE,
-					RegistrationUIConstants.ALERT_NOTE_LABEL, RegistrationUIConstants.UPDATE_FREEZE_TIME_EXCEED,
+			Alert alert = createAlert(AlertType.INFORMATION, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.UPDATE_AVAILABLE),
+					RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.ALERT_NOTE_LABEL), RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.UPDATE_FREEZE_TIME_EXCEED),
 					RegistrationConstants.UPDATE_NOW_LABEL, null);
 
 			alert.show();
@@ -724,7 +775,7 @@ public class HeaderController extends BaseController {
 		if (RegistrationAppHealthCheckUtil.isNetworkAvailable()) {
 			executeSoftwareUpdateTask(pane, progressIndicator);
 		} else {
-			generateAlert(RegistrationConstants.ERROR, RegistrationUIConstants.NO_INTERNET_CONNECTION);
+			generateAlert(RegistrationConstants.ERROR, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.NO_INTERNET_CONNECTION));
 			softwareUpdate(pane, progressIndicator, context, isPreLaunchTaskToBeStopped);
 		}
 	}
@@ -857,16 +908,45 @@ public class HeaderController extends BaseController {
 		if (centerMachineReMapService.isMachineRemapped()) {
 			remapMachine();
 		} else if (showAlert) {
-			generateAlert(RegistrationConstants.ALERT_INFORMATION, RegistrationUIConstants.REMAP_NOT_APPLICABLE);
+			generateAlert(RegistrationConstants.ALERT_INFORMATION, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.REMAP_NOT_APPLICABLE));
 		}
 	}
 
 	private boolean validUser(boolean showAlert) {
 		if (!userDetailService.isValidUser(SessionContext.getInstance().getUserContext().getUserId())) {
-			generateAlert(RegistrationConstants.ALERT_INFORMATION, RegistrationUIConstants.USER_IN_ACTIVE);
+			generateAlert(RegistrationConstants.ALERT_INFORMATION, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.USER_IN_ACTIVE));
 			logout(null);
 			return false;
 		}
 		return true;
+	}
+
+	public void openSettings() {
+		getStage().getScene().getRoot().setDisable(true);
+		settingsController.init(settingsByRole);
+	}
+
+	public void addShortCut(HBox shortCutHBox) {
+		boolean isAdded = false;
+		for (Node node : settingsHBox.getChildren()) {
+			if (node != null && node.getId() != null && node.getId().equalsIgnoreCase(shortCutHBox.getId())) {
+				isAdded = true;
+			}
+		}
+		if (!isAdded) {
+			ContextMenu contextMenu = new ContextMenu();
+			MenuItem removeShortCut = new MenuItem("Remove Shortcut");
+			contextMenu.getItems().add(removeShortCut);
+			removeShortCut.setOnAction(event -> {
+				settingsHBox.getChildren().remove(shortCutHBox);
+				removeShortCutFromList(shortCutHBox);
+				
+			});
+			shortCutHBox.setOnContextMenuRequested(e -> {
+				contextMenu.show(shortCutHBox.getScene().getWindow(), e.getScreenX(), e.getScreenY());
+			});
+			settingsHBox.getChildren().add(shortCutHBox);
+			addShortCutToList(shortCutHBox);
+		}
 	}
 }

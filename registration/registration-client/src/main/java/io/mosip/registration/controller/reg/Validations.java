@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import io.mosip.registration.controller.GenericController;
 import javafx.scene.control.*;
 import org.bridj.cpp.std.list;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +23,7 @@ import io.mosip.kernel.core.exception.ExceptionUtils;
 import io.mosip.kernel.core.idvalidator.exception.InvalidIDException;
 import io.mosip.kernel.core.idvalidator.spi.RidValidator;
 import io.mosip.kernel.core.idvalidator.spi.UinValidator;
+import io.mosip.kernel.core.idvalidator.spi.VidValidator;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.registration.config.AppConfig;
 import io.mosip.registration.constants.RegistrationConstants;
@@ -71,6 +73,8 @@ public class Validations extends BaseController {
 	private UinValidator<String> uinValidator;
 	@Autowired
 	private RidValidator<String> ridValidator;
+	@Autowired
+	private VidValidator<String> vidValidator;
 	@Autowired
 	private DateValidation dateValidation;
 	@Autowired
@@ -133,7 +137,7 @@ public class Validations extends BaseController {
 		return null;
 	}
 
-	private boolean validateButtons(Pane parentPane, Button node, String id) {
+	/*private boolean validateButtons(Pane parentPane, Button node, String id) {
 		AtomicReference<Boolean> buttonSelected = new AtomicReference<>(false);
 		try {
 			VBox parent = (VBox) parentPane.getParent();
@@ -166,7 +170,7 @@ public class Validations extends BaseController {
 					runtimeException.getMessage() + ExceptionUtils.getStackTrace(runtimeException));
 		}
 		return buttonSelected.get();
-	}
+	}*/
 
 	/**
 	 * Validate for the TextField.
@@ -206,8 +210,7 @@ public class Validations extends BaseController {
 
 			boolean showAlert = (noAlert.contains(node.getId()) && id.contains(RegistrationConstants.ON_TYPE));
 
-			UiSchemaDTO uiSchemaDTO = getValidationMap().get(id);
-
+			UiSchemaDTO uiSchemaDTO = GenericController.getFxControlMap().get(id).getUiSchemaDTO();
 
 			if (uiSchemaDTO != null) {
 				if (requiredFieldValidator.isRequiredField(uiSchemaDTO, getRegistrationDTOFromSession())
@@ -265,7 +268,7 @@ public class Validations extends BaseController {
 		if (!isNonBlacklisted)
 			return false;
 
-		String regex = getRegex(fieldId, RegistrationUIConstants.REGEX_TYPE, langCode);
+		String regex = getRegex(fieldId, RegistrationConstants.REGEX_TYPE, langCode);
 		if (regex != null && !value.matches(regex)) {
 			generateInvalidValueAlert(parentPane, node.getId(),
 					getFromLabelMap(fieldId + langCode).concat(RegistrationConstants.SPACE)
@@ -278,7 +281,7 @@ public class Validations extends BaseController {
 		}
 
 		if (!isLocalLanguageField && uiSchemaDTO != null
-				&& Arrays.asList("UIN", "RID").contains(uiSchemaDTO.getSubType())
+				&& Arrays.asList("UIN", "RID","VID").contains(uiSchemaDTO.getSubType())
 				&& !validateUinOrRidField(value, getRegistrationDTOFromSession(), uiSchemaDTO)) {
 			generateInvalidValueAlert(parentPane, node.getId(),
 					getFromLabelMap(fieldId).concat(RegistrationConstants.SPACE)
@@ -440,7 +443,7 @@ public class Validations extends BaseController {
 	/**
 	 * Validate for the ComboBox type of node
 	 */
-	private boolean validateComboBox(Pane parentPane, ComboBox<?> node, String id, boolean isPreviousValid) {
+	/*private boolean validateComboBox(Pane parentPane, ComboBox<?> node, String id, boolean isPreviousValid) {
 		{
 			boolean isComboBoxValueValid = false;
 			try {
@@ -503,26 +506,32 @@ public class Validations extends BaseController {
 
 			return isComboBoxValueValid;
 		}
-	}
+	}*/
 
 	private boolean validateUinOrRidField(String inputText, RegistrationDTO registrationDto, UiSchemaDTO schemaField) {
 		boolean isValid = true;
 		try {
-			if ("UIN".equals(schemaField.getSubType())) {
-				String updateUIN = RegistrationConstants.PACKET_TYPE_UPDATE
+			
+			switch (schemaField.getSubType()) {
+				case "UIN":
+					String updateUIN = RegistrationConstants.PACKET_TYPE_UPDATE
 						.equals(registrationDto.getRegistrationCategory())
 								? (String) registrationDto.getDemographics().get("UIN")
 								: null;
 
-				if (updateUIN != null && inputText.equals(updateUIN))
-					isValid = false;
-
-				if (isValid)
-					isValid = uinValidator.validateId(inputText);
-			}
-
-			if ("RID".equals(schemaField.getSubType())) {
-				isValid = ridValidator.validateId(inputText);
+					if (updateUIN != null && inputText.equals(updateUIN))
+						isValid = false;
+	
+					if (isValid)
+						isValid = uinValidator.validateId(inputText);
+					break;
+			
+				case "RID": 
+					isValid = ridValidator.validateId(inputText);
+					break;
+				case "VID":
+					isValid = vidValidator.validateId(inputText);
+					break;
 			}
 
 		} catch (InvalidIDException invalidRidException) {
@@ -541,7 +550,7 @@ public class Validations extends BaseController {
 	 * @return <code>true</code>, if successful, else <code>false</code>
 	 */
 	public boolean validateSingleString(String value, String id, String langCode) {
-		String regex = getRegex(id, RegistrationUIConstants.REGEX_TYPE, langCode);
+		String regex = getRegex(id, RegistrationConstants.REGEX_TYPE, langCode);
 		return regex != null ? value.matches(regex) : true;
 	}
 
@@ -563,7 +572,7 @@ public class Validations extends BaseController {
 	}
 
 	private String getRegex(String fieldId, String regexType, String langCode) {
-		UiSchemaDTO uiSchemaDTO = getValidationMap().get(fieldId);
+		UiSchemaDTO uiSchemaDTO = GenericController.getFxControlMap().get(fieldId).getUiSchemaDTO();
 		if (uiSchemaDTO != null && uiSchemaDTO.getValidators() != null) {
 
 			if (langCode != null) {
