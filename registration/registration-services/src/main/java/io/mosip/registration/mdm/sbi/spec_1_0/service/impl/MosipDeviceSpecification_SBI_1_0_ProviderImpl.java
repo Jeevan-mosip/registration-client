@@ -107,7 +107,6 @@ public class MosipDeviceSpecification_SBI_1_0_ProviderImpl implements MosipDevic
 				if (mdmDeviceInfoResponse.getDeviceInfo() != null && !mdmDeviceInfoResponse.getDeviceInfo().isEmpty()) {
 					DeviceInfo mdmDeviceInfo = mosipDeviceSpecificationHelper
 							.getDeviceInfoDecoded(mdmDeviceInfoResponse.getDeviceInfo(), this.getClass());
-					
 					MdmBioDevice bioDevice = getBioDevice((MdmSbiDeviceInfo)mdmDeviceInfo);
 					if (bioDevice != null) {
 						bioDevice.setPort(port);
@@ -131,7 +130,6 @@ public class MosipDeviceSpecification_SBI_1_0_ProviderImpl implements MosipDevic
 				throw new RegBaseCheckedException(RegistrationExceptionConstants.MDS_BIODEVICE_NOT_FOUND.getErrorCode(),
 						RegistrationExceptionConstants.MDS_BIODEVICE_NOT_FOUND.getErrorMessage());
 			}
-
 			LOGGER.info(loggerClassName, APPLICATION_NAME, APPLICATION_ID, "Started Strema for modality : " + modality);
 			String url = mosipDeviceSpecificationHelper.buildUrl(bioDevice.getPort(),
 					MosipBioDeviceConstants.STREAM_ENDPOINT);
@@ -250,7 +248,6 @@ public class MosipDeviceSpecification_SBI_1_0_ProviderImpl implements MosipDevic
 
 				LOGGER.info(loggerClassName, APPLICATION_NAME, APPLICATION_ID,
 						"Parsed decoded payload" + System.currentTimeMillis());
-
 				String uiAttribute = Biometric.getUiSchemaAttributeName(dataDTO.getBioSubType(), SPEC_VERSION);
 				BiometricsDto biometricDTO = new BiometricsDto(uiAttribute, dataDTO.getDecodedBioValue(),
 						Double.parseDouble(dataDTO.getQualityScore()));

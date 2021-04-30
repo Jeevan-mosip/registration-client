@@ -81,6 +81,12 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.7.0</version>
+            <scope>test</scope>
+        </dependency>
+		<dependency>
 			<groupId>io.mosip.kernel</groupId>
 			<artifactId>kernel-core</artifactId>
 			<exclusions>
@@ -230,6 +236,11 @@
 			<groupId>com.github.sarxos</groupId>
 			<artifactId>webcam-capture</artifactId>
 			<version>${webcam-capture.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>io.mosip.mock.sdk</groupId>
+			<artifactId>mock-sdk</artifactId>
+			<version>0.9-rc1</version>
 		</dependency>
 		<dependency>
 			<groupId>io.mosip.kernel</groupId>
